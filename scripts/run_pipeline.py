@@ -1,8 +1,9 @@
 from pair_files import load_pair
 from preprocess import preprocess
 from parse_md import parse_document
+from compare import compare_structures
 
-PAIR_ID = "08"
+PAIR_ID = "02"
 
 def main():
     ia_raw, human_raw = load_pair(PAIR_ID)
@@ -13,11 +14,12 @@ def main():
     ia_data = parse_document(ia)
     human_data = parse_document(human)
 
-    print("\n=== IA structure ===\n")
-    print(ia_data)
+    comparison = compare_structures(ia_data, human_data)
 
-    print("\n=== Human clean ===\n")
-    print(human_data)
+    print("\n=== Comparison ===\n")
+
+    for key, value in comparison.items():
+        print(f"{key}: {value}")
 
 if __name__ == "__main__":
     main()
