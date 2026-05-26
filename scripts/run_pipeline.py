@@ -5,7 +5,7 @@ from preprocess import preprocess
 from parse_md import parse_document
 from compare import compare_structures
 
-PAIR_ID = "08"
+PAIR_ID = "07"
 
 def main():
     ia_raw, human_raw = load_pair(PAIR_ID)

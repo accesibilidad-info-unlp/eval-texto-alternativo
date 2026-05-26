@@ -15,9 +15,13 @@ def normalize_whitespace(text):
 
     return "\n".join(lines).strip()
 
+def remove_html_tags(text):
+    return re.sub(r"<[^>]+>", "", text)
+
 def preprocess(text):
 
     text = remove_front_matter(text)
+    text = remove_html_tags(text)
     text = normalize_whitespace(text)
 
     return text
