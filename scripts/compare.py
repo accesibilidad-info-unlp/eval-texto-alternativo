@@ -1,17 +1,17 @@
 def compare_structures(ia, human):
 
     return {
-        "h1_added":
-            int(ia["h1"] is None
-            and human["h1"] is not None),
-        "h2_added":
-            max(0, len(human["h2"]) - len(ia["h2"])),
-        "landmarks_added":
-            max(0, len(human["landmarks"]) - len(ia["landmarks"])),
-        "editorial_labels_added":
-            max(0, len(human["editorial_labels"]) - len(ia["editorial_labels"])),
-        "paragraph_added":
+        "document_title_introduced":
+            int(ia["document_title"] is None
+            and human["document_title"] is not None),
+        "section_heading_count_delta":
+            max(0, len(human["section_headings"]) - len(ia["section_headings"])),
+        "spatial_landmark_count_delta":
+            max(0, len(human["spatial_landmarks"]) - len(ia["spatial_landmarks"])),
+        "textual_label_count_delta":
+            max(0, len(human["textual_labels"]) - len(ia["textual_labels"])),
+        "paragraph_count_delta":
             human["paragraph_count"] - ia["paragraph_count"],
-        "list_added":
+        "list_count_delta":
             max(0, human["list_count"] - ia["list_count"])
     }
