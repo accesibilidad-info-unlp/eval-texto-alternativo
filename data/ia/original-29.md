@@ -1,0 +1,3 @@
+La imagen es un dibujo en un cartel. A la izquierda está el personaje de Mafalda, vistiendo un vestido verde con rayas y un lazo en el cabello. Del lado derecho hay una computadora antigua. Mafalda tiene una expresión reflexiva y se muestra un globo de pensamiento que dice: "Si las mujeres fueron las pioneras de la informática... ¿Por qué ahora dicen que no es para ellas?"
+
+En la esquina superior izquierda, hay un texto que dice "UNLP Informático". En la parte inferior derecha están los nombres: "De León - Pagano - Ferreyra".
