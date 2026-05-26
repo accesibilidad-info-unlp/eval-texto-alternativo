@@ -25,7 +25,7 @@ def main():
 
     print("\n=== Human sections ===\n")
     pprint(
-        human_data["sections"],
+        human_data.sections,
         width=100
     )
 

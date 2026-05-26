@@ -1,97 +1,110 @@
-import re
-from re import findall
+from dataclasses import dataclass, field
 
+@dataclass
+class Metrics:
+    section_heading_count: int = 0
+    spatial_landmark_count: int = 0
+    textual_label_count: int = 0
+    paragraph_count: int = 0
+    list_count: int = 0
 
-def extract_document_title(text):
-    match = re.search(r"^# (.*)", text, flags=re.MULTILINE)
-    return match.group(1) if match else None
+@dataclass
+class Landmark:
+    name: str
+    paragraphs: list[str] = field(default_factory=list)
+    text_labels: list[str] = field(default_factory=list)
+    lists: list[str] = field(default_factory=list)
 
-def extract_section_headings(text):
-    return re.findall(r"^## (.*)", text, flags=re.MULTILINE)
+@dataclass
+class Section:
+    heading: str
+    landmarks: list[Landmark] = field(default_factory=list)
+    text_labels: list[str] = field(default_factory=list)
+    paragraphs: list[str] = field(default_factory=list)
+    lists: list[str] = field(default_factory=list)
 
-def extract_spatial_landmarks(text):
-    return re.findall(r"^\[(.+?)\]$", text, flags=re.MULTILINE)
+@dataclass
+class Document:
+    title: str | None = None
+    sections: list[Section] = field(default_factory=list)
+    metrics: Metrics = field(default_factory=Metrics)
 
-def count_lists(text):
-    return len(findall(r"^- ", text, flags=re.MULTILINE))
+def parse_document(text):
+    document = Document()
 
-def count_paragraphs(text):
-    paragraphs = re.split(r"\n\s*\n", text.strip())
-    return len([p for p in paragraphs if p.strip()])
-
-def extract_textual_labels(text):
-    labels = []
-
-    for line in text.splitlines():
-        line = line.strip()
-
-        if not line:
-            continue
-
-        # **label**
-        bold_match = re.match(r"^\*\*(.+?)\*\*$", line)
-        if bold_match:
-            labels.append(bold_match.group(1))
-            continue
-
-        # - label:
-        dash_match = re.match(r"^- (.+):$", line)
-        if dash_match:
-            labels.append(dash_match.group(1))
-
-    return labels
-
-def extract_sections(text):
-    sections = []
+    blocks = text.split("\n\n")
 
     current_section = None
     current_landmark = None
 
-    paragraphs = text.split("\n\n")
+    def get_target():
+        return current_landmark if current_landmark else current_section
 
-    for paragraph in paragraphs:
-        paragraph = paragraph.strip()
-        if not paragraph:
+    def compute_metrics(sections: list[Section]) -> Metrics:
+        metrics = Metrics()
+        metrics.section_heading_count = len(sections)
+
+        for section in sections:
+            metrics.spatial_landmark_count += len(section.landmarks)
+            metrics.textual_label_count += len(section.text_labels)
+            metrics.paragraph_count += len(section.paragraphs)
+            metrics.list_count += len(section.lists)
+
+            for landmark in section.landmarks:
+                metrics.textual_label_count += len(landmark.text_labels)
+                metrics.paragraph_count += len(landmark.paragraphs)
+                metrics.list_count += len(landmark.lists)
+
+        return metrics
+
+    for block in blocks:
+        block = block.strip()
+
+        if not block:
             continue
 
-        # section heading
-        h2_match = re.match(r"^## (.+)$", paragraph)
-        if h2_match:
-            current_section = {
-                "heading": h2_match.group(1),
-                "landmarks": []
-            }
-            sections.append(current_section)
+        # Extract document title
+        if block.startswith("# "):
+            document.title = block[2:].strip()
+            continue
+
+        # Extract section
+        if block.startswith("## "):
+            current_section = Section(heading = block[3:].strip())
+            document.sections.append(current_section)
             current_landmark = None
-            continue
+        # Extract landmark
+        elif block.startswith("[") and block.endswith("]"):
+            if current_section is None:
+                continue
+            current_landmark = Landmark(name = block[1:-1].strip())
+            current_section.landmarks.append(current_landmark)
+        # Extract text labels
+        elif block.startswith("**") and block.endswith("**"):
+            label = block[2:-2].strip()
+            target = get_target()
+            if target:
+                target.text_labels.append(label)
+        # Extract label variant
+        elif block.startswith("- ") and block.endswith(":"):
+            label = block[2:-1].strip()
+            target = get_target()
+            if target:
+                target.text_labels.append(label)
+        # Extract list item
+        elif block.startswith("- "):
+            target = get_target()
+            if target:
+                for line in block.splitlines():
+                    line = line.strip()
+                    if line.startswith("- "):
+                        target.lists.append(line[2:].strip())
+        # Extract paragraphs
+        else:
+            target = get_target()
+            if target:
+                target.paragraphs.append(block)
 
-        # landmark
-        landmark_match = re.match(r"^\[(.+)\]$", paragraph)
-        if landmark_match and current_section:
-            current_landmark = {
-                "name": landmark_match.group(1),
-                "paragraph_count": 0,
-                "paragraphs": []
-            }
-            current_section["landmarks"].append(current_landmark)
-            continue
+    document.metrics = compute_metrics(document.sections)
 
-        # current paragraph
-        if current_landmark:
-            current_landmark["paragraph_count"] += 1
-            current_landmark["paragraphs"].append(paragraph)
-
-    return sections
-
-
-def parse_document(text):
-
-    return {
-        "document_title": extract_document_title(text),
-        "section_headings": extract_section_headings(text),
-        "spatial_landmarks": extract_spatial_landmarks(text),
-        "textual_labels": extract_textual_labels(text),
-        "sections": extract_sections(text),
-        "paragraph_count": count_paragraphs(text),
-        "list_count": count_lists(text)
-    }
+    return document

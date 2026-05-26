@@ -1,17 +1,20 @@
-def compare_structures(ia, human):
+from parse_md import Document
+
+
+def compare_structures(ia:Document, human:Document):
 
     return {
         "document_title_introduced":
-            int(ia["document_title"] is None
-            and human["document_title"] is not None),
+            int(ia.title is None and
+                human.title is not None),
         "section_heading_count_delta":
-            max(0, len(human["section_headings"]) - len(ia["section_headings"])),
+            human.metrics.section_heading_count - ia.metrics.section_heading_count,
         "spatial_landmark_count_delta":
-            max(0, len(human["spatial_landmarks"]) - len(ia["spatial_landmarks"])),
+            human.metrics.spatial_landmark_count - ia.metrics.spatial_landmark_count,
         "textual_label_count_delta":
-            max(0, len(human["textual_labels"]) - len(ia["textual_labels"])),
+            human.metrics.textual_label_count - ia.metrics.textual_label_count,
         "paragraph_count_delta":
-            human["paragraph_count"] - ia["paragraph_count"],
+            human.metrics.paragraph_count - ia.metrics.paragraph_count,
         "list_count_delta":
-            max(0, human["list_count"] - ia["list_count"])
+            human.metrics.list_count - ia.metrics.list_count,
     }
