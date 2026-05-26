@@ -46,9 +46,9 @@ def compare_landmarks(ia:Document, human:Document):
     return {"landmark_count_delta": len(human_landmarks) - len(ia_landmarks)}
 
 def compare_documents(ia:Document, human:Document):
-    return (
-        compare_structures(ia, human),
-        compare_sections(ia, human),
-        compare_order(ia, human),
-        compare_landmarks(ia, human),
-    )
+    return {
+        **compare_structures(ia, human),
+        **compare_sections(ia, human),
+        **compare_order(ia, human),
+        **compare_landmarks(ia, human),
+    }

@@ -1,34 +1,32 @@
-from pprint import pprint
-
-from pair_files import load_pair
+from pair_files import load_all_pairs
 from preprocess import preprocess
 from parse_md import parse_document
 from compare import compare_documents
-
-PAIR_ID = "08"
+from export import export_csv
 
 def main():
-    ia_raw, human_raw = load_pair(PAIR_ID)
 
-    ia = preprocess(ia_raw)
-    human = preprocess(human_raw)
+    ini = 1
+    fin = 53
 
-    ia_data = parse_document(ia)
-    human_data = parse_document(human)
+    dataset = load_all_pairs(ini, fin)
+    result = []
 
-    comparison = compare_documents(ia_data, human_data)
+    for pair in dataset:
+        ia_raw, human_raw = pair["ia"], pair["human"]
 
-    print("\n=== Comparison ===\n")
+        ia = preprocess(ia_raw)
+        human = preprocess(human_raw)
 
-    # for key, value in comparison.items():
-    #     print(f"{key}: {value}")
-    print(comparison)
+        ia_document = parse_document(ia)
+        human_document = parse_document(human)
 
-    # print("\n=== Human sections ===\n")
-    # pprint(
-    #     human_data.sections,
-    #     width=100
-    # )
+        comparison = compare_documents(ia_document, human_document)
+        comparison["id"] = pair["id"]
+
+        result.append(comparison)
+
+    export_csv(result, "outputs/comparison.csv")
 
 if __name__ == "__main__":
     main()
