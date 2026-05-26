@@ -2,7 +2,12 @@ from pair_files import load_all_pairs
 from preprocess import preprocess
 from parse_md import parse_document
 from compare import compare_documents
-from export import export_csv
+from export import (
+    export_csv,
+    export_json,
+    export_summary,
+    generate_summary
+)
 
 def main():
 
@@ -10,7 +15,7 @@ def main():
     fin = 53
 
     dataset = load_all_pairs(ini, fin)
-    result = []
+    results = []
 
     for pair in dataset:
         ia_raw, human_raw = pair["ia"], pair["human"]
@@ -24,9 +29,14 @@ def main():
         comparison = compare_documents(ia_document, human_document)
         comparison["id"] = pair["id"]
 
-        result.append(comparison)
+        results.append(comparison)
 
-    export_csv(result, "outputs/comparison.csv")
+    export_csv(results, "outputs/comparison.csv")
+    export_json(results, "outputs/comparison.json")
+    export_summary(
+        generate_summary(results),
+        "outputs/summary.json"
+    )
 
 if __name__ == "__main__":
     main()
