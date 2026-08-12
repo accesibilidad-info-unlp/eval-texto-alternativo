@@ -1,54 +1,217 @@
-from step_03_build_document import Document
+# structure eval
 
-def compare_structures(ia:Document, human:Document):
+def evaluate_structure(ia, human):
+    """Compara la estructura generada por IA con la corrección humana."""
 
-    return {
-        "document_title_introduced":
-            int(ia.title is None and
-                human.title is not None),
-        "section_heading_count_delta":
-            human.metrics.section_heading_count - ia.metrics.section_heading_count,
-        "spatial_landmark_count_delta":
-            human.metrics.spatial_landmark_count - ia.metrics.spatial_landmark_count,
-        "textual_label_count_delta":
-            human.metrics.textual_label_count - ia.metrics.textual_label_count,
-        "paragraph_count_delta":
-            human.metrics.paragraph_count - ia.metrics.paragraph_count,
-        "list_count_delta":
-            human.metrics.list_count - ia.metrics.list_count,
+    ia_structure = ia.structure
+    human_structure = human.structure
+
+    ia_counts = count_structure(ia_structure)
+    human_counts = count_structure(human_structure)
+
+    evaluation = {
+        "reference": "human",
+        "total_elements": {
+            "ia": len(ia_structure),
+            "human": len(human_structure),
+        },
+        "elements": {},
     }
 
-def compare_sections(ia:Document, human:Document):
-    ia_sections = [section.heading for section in ia.sections]
-    human_sections = [section.heading for section in human.sections]
+    for element_type, label in [
+        ("h1", "encabezados H1"),
+        ("h2", "encabezados H2"),
+        ("h3", "encabezados H3"),
+        ("landmark", "landmarks"),
+        ("label", "subtítulos o etiquetas"),
+        ("paragraph", "párrafos"),
+        ("list", "listas"),
+    ]:
+        ia_count = ia_counts.get(element_type, 0)
+        human_count = human_counts.get(element_type, 0)
 
-    return {"section_count_delta": len(human_sections) - len(ia_sections),
-            "section_coverage_ratio": len(human.sections) / max(1, len(ia.sections))}
+        evaluation["elements"][element_type] = {
+            "ia": ia_count,
+            "human": human_count,
+            "difference": ia_count - human_count,
+            "message": describe_difference(
+                label,
+                ia_count,
+                human_count,
+            ),
+        }
 
-def compare_order(ia:Document, human:Document):
-    def extract_section_order(document:Document):
-        return [section.heading for section in document.sections]
+    evaluation["order"] = compare_order(
+        ia_structure,
+        human_structure,
+    )
 
-    ia_order = extract_section_order(ia)
-    human_order = extract_section_order(human)
+    return evaluation
 
-    return {"section_order_match": int(ia_order == human_order)}
 
-def compare_landmarks(ia:Document, human:Document):
-    def landmark_names(document:Document):
-        return [landmark.name
-                for section in document.sections
-                for landmark in section.landmarks]
+def count_structure(structure):
+    """Cuenta los elementos de cada tipo dentro de una estructura."""
 
-    ia_landmarks = landmark_names(ia)
-    human_landmarks = landmark_names(human)
+    counts = {}
 
-    return {"landmark_count_delta": len(human_landmarks) - len(ia_landmarks)}
+    for element_type, _ in structure:
+        counts[element_type] = counts.get(element_type, 0) + 1
 
-def compare_documents(ia:Document, human:Document):
+    return counts
+
+
+def describe_difference(label, ia_count, human_count):
+    """Genera una explicación de la diferencia respecto de la referencia humana."""
+
+    if ia_count == human_count:
+        return (
+            f"La IA generó {ia_count} {label}, "
+            f"la misma cantidad que la corrección humana."
+        )
+
+    if ia_count < human_count:
+        difference = human_count - ia_count
+
+        return (
+            f"La IA generó {ia_count} {label}, "
+            f"{difference} menos que la corrección humana "
+            f"({human_count})."
+        )
+
+    difference = ia_count - human_count
+
+    return (
+        f"La IA generó {ia_count} {label}, "
+        f"{difference} más que la corrección humana "
+        f"({human_count})."
+    )
+
+
+def compare_order(ia_structure, human_structure):
+    """Compara los tipos de elementos según su posición en la estructura."""
+
+    matches = 0
+    comparisons = min(
+        len(ia_structure),
+        len(human_structure),
+    )
+
+    for position in range(comparisons):
+        ia_type = ia_structure[position][0]
+        human_type = human_structure[position][0]
+
+        if ia_type == human_type:
+            matches += 1
+
     return {
-        **compare_structures(ia, human),
-        **compare_sections(ia, human),
-        **compare_order(ia, human),
-        **compare_landmarks(ia, human),
+        "ia_positions": len(ia_structure),
+        "human_positions": len(human_structure),
+        "compared_positions": comparisons,
+        "matching_positions": matches,
+        "message": describe_order(
+            matches,
+            comparisons,
+            len(ia_structure),
+            len(human_structure),
+        ),
+    }
+
+
+def describe_order(
+    matches,
+    comparisons,
+    ia_total,
+    human_total,
+):
+    """Genera una explicación de la comparación posicional."""
+
+    if comparisons == 0:
+        return "No hay elementos estructurales para comparar."
+
+    if matches == comparisons and ia_total == human_total:
+        return (
+            "La estructura generada por la IA coincide "
+            "con la corrección humana en todas las posiciones comparadas."
+        )
+
+    return (
+        f"La estructura generada por la IA coincide con la "
+        f"corrección humana en {matches} de {comparisons} "
+        f"posiciones comparables."
+    )
+
+
+# content eval
+
+def evaluate_content(ia, human):
+    """Compara el contenido estructurado generado por IA con la corrección humana."""
+
+    ia_content = ia.content
+    human_content = human.content
+
+    evaluation = {
+        "reference": "human",
+        "sections": {},
+    }
+
+    for heading_type, label in [
+        ("h1", "encabezados H1"),
+        ("h2", "encabezados H2"),
+        ("h3", "encabezados H3"),
+    ]:
+        ia_count = len(ia_content["headings"].get(heading_type, []))
+        human_count = len(human_content["headings"].get(heading_type, []))
+
+        evaluation["sections"][heading_type] = {
+            "ia": ia_count,
+            "human": human_count,
+            "difference": ia_count - human_count,
+            "message": describe_difference(
+                label,
+                ia_count,
+                human_count,
+            ),
+        }
+
+    for section, label in [
+        ("labels", "subtítulos o etiquetas"),
+        ("landmarks", "landmarks"),
+        ("paragraphs", "párrafos"),
+        ("lists", "listas"),
+    ]:
+        ia_count = count_content_items(
+            ia_content.get(section, {})
+        )
+        human_count = count_content_items(
+            human_content.get(section, {})
+        )
+
+        evaluation["sections"][section] = {
+            "ia": ia_count,
+            "human": human_count,
+            "difference": ia_count - human_count,
+            "message": describe_difference(
+                label,
+                ia_count,
+                human_count,
+            ),
+        }
+
+    return evaluation
+
+
+def count_content_items(content):
+    """Cuenta los elementos de una colección de contenido."""
+
+    return len(content)
+
+
+# document
+
+def evaluate_documents(ia, human):
+    """Ejecuta las evaluaciones disponibles."""
+
+    return {
+        "structure": evaluate_structure(ia, human),
+        "content": evaluate_content(ia, human),
     }

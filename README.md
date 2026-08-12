@@ -159,3 +159,4 @@ Para inspeccionar el resultado sobre un par real:
 
 ```shell
 ./scripts/inspect_build_document.sh 01
+```

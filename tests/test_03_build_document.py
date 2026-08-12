@@ -16,7 +16,7 @@ REAL_FILES = [
 ]
 
 
-def parse_real_file(path):
+def build_real_document(path):
     text = path.read_text(encoding="utf-8")
     return build_document(preprocess(text))
 
@@ -24,7 +24,7 @@ def parse_real_file(path):
 def test_real_files_produce_documents():
     """Los documentos reales deben poder ser parseados."""
     for path in REAL_FILES:
-        document = parse_real_file(path)
+        document = build_real_document(path)
 
         assert document is not None
         assert isinstance(document.structure, list)
@@ -34,7 +34,7 @@ def test_real_files_produce_documents():
 def test_real_documents_have_expected_content_sections():
     """El modelo debe exponer las colecciones utilizadas por los evaluadores."""
     for path in REAL_FILES:
-        document = parse_real_file(path)
+        document = build_real_document(path)
 
         assert set(document.content) == {
             "headings",
@@ -44,13 +44,13 @@ def test_real_documents_have_expected_content_sections():
             "lists",
         }
 
-        assert set(document.content["headings"]) == {"h1", "h2"}
+        assert set(document.content["headings"]) == {"h1", "h2", "h3"}
 
 
 def test_real_documents_have_structural_elements():
     """Los documentos reales deben generar elementos en su secuencia estructural."""
     for path in REAL_FILES:
-        document = parse_real_file(path)
+        document = build_real_document(path)
 
         assert document.structure
 
@@ -58,18 +58,23 @@ def test_real_documents_have_structural_elements():
             assert element_type in {
                 "h1",
                 "h2",
+                "h3",
                 "landmark",
                 "label",
                 "list",
                 "paragraph",
             }
-            assert isinstance(value, str)
+
+            assert isinstance(value, (str, list))
+
+            if isinstance(value, list):
+                assert all(isinstance(item, str) for item in value)
 
 
 def test_real_paragraph_keys_are_compact():
     """Las claves reales deben conservar un prefijo legible y un hash corto."""
     for path in REAL_FILES:
-        document = parse_real_file(path)
+        document = build_real_document(path)
 
         for key in document.content["paragraphs"]:
             parts = key.rsplit("-", 1)
