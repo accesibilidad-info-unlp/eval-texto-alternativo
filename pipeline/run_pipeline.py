@@ -1,4 +1,4 @@
-from step_01_pair import load_all_pairs
+from step_01_pair import load_pairs
 from step_02_preprocess import preprocess
 from step_03_parse import parse_document
 from step_04_eval import compare_documents
@@ -14,7 +14,7 @@ def main():
     ini = 1
     fin = 53
 
-    dataset = load_all_pairs(ini, fin)
+    dataset = load_pairs(ini, fin)
     results = []
 
     for pair in dataset:
