@@ -147,9 +147,9 @@ preparación para publicación e impresión
 
 Este proyecto se concentra actualmente en la etapa de evaluación, como parte de un sistema más amplio que busca articular de manera continua la generación, la validación y la publicación de textos alternativos.
 
-## Inspección del parser
+## Inspección del constructor de Documentos
 
-El parser transforma cada archivo Markdown preprocesado en un objeto `Document`.
+El constructor de Documentos transforma cada archivo Markdown preprocesado en un objeto `Document`.
 Este objeto contiene dos representaciones del documento:
 
 - `structure`: secuencia ordenada de elementos utilizada por la evaluación estructural
@@ -158,4 +158,4 @@ Este objeto contiene dos representaciones del documento:
 Para inspeccionar el resultado sobre un par real:
 
 ```shell
-./scripts/inspect_parse.sh 01
+./scripts/inspect_build_document.sh 01

@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from pipeline.step_03_parse import (
+from pipeline.step_03_build_document import (
     make_paragraph_key,
     normalize_text,
-    parse_document,
+    build_document,
 )
 from pipeline.step_02_preprocess import preprocess
 
@@ -18,7 +18,7 @@ REAL_FILES = [
 
 def parse_real_file(path):
     text = path.read_text(encoding="utf-8")
-    return parse_document(preprocess(text))
+    return build_document(preprocess(text))
 
 
 def test_real_files_produce_documents():

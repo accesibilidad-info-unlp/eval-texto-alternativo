@@ -10,21 +10,23 @@ def remove_front_matter(text):
 
     return re.sub(pattern, "", text, flags=re.DOTALL)
 
-def normalize_whitespace(text):
-    """Normaliza espacios y saltos de línea sin alterar el contenido textual."""
+def remove_backticks(text):
+    """Elimina backticks generados por la IA.."""
+    return text.replace("`", "")
 
+def remove_html_tags(text):
+    return re.sub(r"<[^>]+>", "", text)
+
+def normalize_whitespace(text):
     lines = [line.strip() for line in text.splitlines()]
 
     return "\n".join(lines).strip()
-
-def remove_html_tags(text):
-    """Elimina etiquetas HTML que no forman parte del contenido evaluado."""
-    return re.sub(r"<[^>]+>", "", text)
 
 def preprocess(text):
     """Prepara el texto para su posterior análisis estructural y de contenido."""
 
     text = remove_front_matter(text)
+    text = remove_backticks(text)
     text = remove_html_tags(text)
     text = normalize_whitespace(text)
 

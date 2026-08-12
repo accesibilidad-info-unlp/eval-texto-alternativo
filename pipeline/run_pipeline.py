@@ -1,6 +1,6 @@
 from step_01_pair import load_pairs
 from step_02_preprocess import preprocess
-from step_03_parse import parse_document
+from step_03_build_document import build_document
 from step_04_eval import compare_documents
 from step_05_export import (
     export_csv,
@@ -23,8 +23,8 @@ def main():
         ia = preprocess(ia_raw)
         human = preprocess(human_raw)
 
-        ia_document = parse_document(ia)
-        human_document = parse_document(human)
+        ia_document = build_document(ia)
+        human_document = build_document(human)
 
         comparison = compare_documents(ia_document, human_document)
         comparison["id"] = pair["id"]

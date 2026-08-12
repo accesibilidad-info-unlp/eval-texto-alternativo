@@ -4,6 +4,7 @@ from pipeline.step_02_preprocess import (
     normalize_whitespace,
     preprocess,
     remove_front_matter,
+    remove_backticks,
     remove_html_tags,
 )
 
@@ -33,6 +34,14 @@ def test_front_matter_is_removed_from_real_files():
         result = remove_front_matter(text)
 
         assert not result.lstrip().startswith("---")
+
+
+def test_remove_backticks():
+    text = "`Cecilia Berdichevsky` y `Ada Lovelace`"
+
+    result = remove_backticks(text)
+
+    assert result == "Cecilia Berdichevsky y Ada Lovelace"
 
 
 def test_preprocess_removes_front_matter():

@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 
 from pipeline.step_02_preprocess import preprocess
-from pipeline.step_03_parse import parse_document
+from pipeline.step_03_build_document import build_document
 
 
 DATA_DIR = Path("data")
@@ -10,7 +10,7 @@ DATA_DIR = Path("data")
 
 def load_document(path):
     text = path.read_text(encoding="utf-8")
-    return parse_document(preprocess(text))
+    return build_document(preprocess(text))
 
 
 def print_separator(title):
