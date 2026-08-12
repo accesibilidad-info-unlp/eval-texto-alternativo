@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pipeline.step_03_build_document import (
     make_paragraph_key,
-    normalize_text,
+    normalize_for_comparison,
     build_document,
 )
 from pipeline.step_02_preprocess import preprocess
@@ -91,7 +91,7 @@ def test_normalize_text_ignores_case_and_accents():
     first = "LAS MUJERES TAMBIÉN FUERON PROTAGONISTAS"
     second = "Las mujeres también fueron protagonistas"
 
-    assert normalize_text(first) == normalize_text(second)
+    assert normalize_for_comparison(first) == normalize_for_comparison(second)
 
 
 def test_paragraph_key_uses_first_five_words_and_hash():

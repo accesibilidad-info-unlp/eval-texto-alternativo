@@ -21,7 +21,7 @@ class Document:
     )
 
 
-def normalize_text(text):
+def normalize_for_comparison(text):
     """Normaliza el texto para generar identificadores comparables."""
     text = unicodedata.normalize("NFD", text)
     text = "".join(
@@ -38,7 +38,7 @@ def normalize_text(text):
 
 def make_paragraph_key(text):
     """Genera una clave legible y compacta para un párrafo."""
-    normalized = normalize_text(text)
+    normalized = normalize_for_comparison(text)
 
     words = normalized.split()
     prefix = "-".join(words[:5])

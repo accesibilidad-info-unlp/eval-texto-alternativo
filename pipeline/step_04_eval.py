@@ -1,3 +1,9 @@
+import re
+import unicodedata
+from difflib import SequenceMatcher
+
+FUZZY_THRESHOLD = 0.70
+
 # structure eval
 
 def evaluate_structure(ia, human):
@@ -10,7 +16,6 @@ def evaluate_structure(ia, human):
     human_counts = count_structure(human_structure)
 
     evaluation = {
-        "reference": "human",
         "total_elements": {
             "ia": len(ia_structure),
             "human": len(human_structure),
@@ -143,6 +148,77 @@ def describe_order(
 
 # content eval
 
+def evaluate_paragraphs(ia_paragraphs, human_paragraphs):
+    """Compara párrafos por clave y, luego, por similitud textual."""
+
+    ia_pending = dict(ia_paragraphs)
+    human_pending = dict(human_paragraphs)
+
+    exact_matches = []
+
+    for key in list(ia_pending):
+        if key not in human_pending:
+            continue
+
+        exact_matches.append({
+            "ia_text": ia_pending.pop(key),
+            "human_text": human_pending.pop(key),
+            "similarity": 1.0,
+        })
+
+    fuzzy_matches = []
+
+    for ia_key, ia_text in list(ia_pending.items()):
+        best_match = None
+        best_similarity = 0.0
+
+        for human_key, human_text in human_pending.items():
+            similarity = SequenceMatcher(
+                None,
+                normalize_for_comparison(ia_text),
+                normalize_for_comparison(human_text),
+            ).ratio()
+
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = human_key
+
+        if best_match is None or best_similarity < FUZZY_THRESHOLD:
+            continue
+
+        fuzzy_matches.append({
+            "ia_text": ia_text,
+            "human_text": human_pending[best_match],
+            "similarity": round(best_similarity, 3),
+        })
+
+        human_pending.pop(best_match)
+        ia_pending.pop(ia_key)
+
+    return {
+        "exact_matches": exact_matches,
+        "fuzzy_matches": fuzzy_matches,
+        "unmatched_ia": list(ia_pending.values()),
+        "unmatched_human": list(human_pending.values()),
+    }
+
+def normalize_for_comparison(text):
+    """Normaliza el texto para comparar párrafos."""
+
+    text = unicodedata.normalize("NFD", text)
+
+    text = "".join(
+        char
+        for char in text
+        if unicodedata.category(char) != "Mn"
+    )
+
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
 def evaluate_content(ia, human):
     """Compara el contenido estructurado generado por IA con la corrección humana."""
 
@@ -150,7 +226,6 @@ def evaluate_content(ia, human):
     human_content = human.content
 
     evaluation = {
-        "reference": "human",
         "sections": {},
     }
 
@@ -159,8 +234,12 @@ def evaluate_content(ia, human):
         ("h2", "encabezados H2"),
         ("h3", "encabezados H3"),
     ]:
-        ia_count = len(ia_content["headings"].get(heading_type, []))
-        human_count = len(human_content["headings"].get(heading_type, []))
+        ia_count = len(
+            ia_content["headings"].get(heading_type, [])
+        )
+        human_count = len(
+            human_content["headings"].get(heading_type, [])
+        )
 
         evaluation["sections"][heading_type] = {
             "ia": ia_count,
@@ -176,7 +255,6 @@ def evaluate_content(ia, human):
     for section, label in [
         ("labels", "subtítulos o etiquetas"),
         ("landmarks", "landmarks"),
-        ("paragraphs", "párrafos"),
         ("lists", "listas"),
     ]:
         ia_count = count_content_items(
@@ -196,6 +274,11 @@ def evaluate_content(ia, human):
                 human_count,
             ),
         }
+
+    evaluation["sections"]["paragraphs"] = evaluate_paragraphs(
+        ia_content.get("paragraphs", {}),
+        human_content.get("paragraphs", {}),
+    )
 
     return evaluation
 

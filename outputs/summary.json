@@ -1,0 +1,14 @@
+{
+  "cantidad_documentos": 53,
+  "promedio_diferencia_encabezados_h1": -0.98,
+  "promedio_diferencia_encabezados_h2": -1.85,
+  "promedio_diferencia_encabezados_h3": 0.06,
+  "promedio_diferencia_landmarks": -1.15,
+  "promedio_diferencia_etiquetas": -0.25,
+  "promedio_diferencia_parrafos": 1.49,
+  "promedio_diferencia_listas": 0.02,
+  "cantidad_coincidencias_exactas_parrafos": 38,
+  "cantidad_coincidencias_aproximadas_parrafos": 43,
+  "cantidad_parrafos_ia_sin_coincidencia": 178,
+  "cantidad_parrafos_humanos_sin_coincidencia": 99
+}

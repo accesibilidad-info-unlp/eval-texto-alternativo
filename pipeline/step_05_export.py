@@ -1,7 +1,6 @@
 import csv
 import json
 
-
 def export_csv(rows, path):
     """Exporta filas planas a un archivo CSV."""
 
@@ -47,6 +46,7 @@ def flatten_results(results):
 
     for result in results:
         elements = result["structure"]["elements"]
+        paragraphs = result["content"]["sections"]["paragraphs"]
 
         rows.append({
             "id": result["id"],
@@ -75,6 +75,19 @@ def flatten_results(results):
             "parrafos_humano": elements["paragraph"]["human"],
             "diferencia_parrafos": elements["paragraph"]["difference"],
 
+            "coincidencias_exactas_parrafos": len(
+                paragraphs["exact_matches"]
+            ),
+            "coincidencias_aproximadas_parrafos": len(
+                paragraphs["fuzzy_matches"]
+            ),
+            "parrafos_ia_sin_coincidencia": len(
+                paragraphs["unmatched_ia"]
+            ),
+            "parrafos_humanos_sin_coincidencia": len(
+                paragraphs["unmatched_human"]
+            ),
+
             "listas_ia": elements["list"]["ia"],
             "listas_humano": elements["list"]["human"],
             "diferencia_listas": elements["list"]["difference"],
@@ -100,8 +113,17 @@ def generate_summary(results):
             2,
         )
 
+    def total_paragraph_matches(match_type):
+        return sum(
+            len(
+                result["content"]["sections"]["paragraphs"][match_type]
+            )
+            for result in results
+        )
+
     return {
         "cantidad_documentos": total,
+
         "promedio_diferencia_encabezados_h1": average("h1"),
         "promedio_diferencia_encabezados_h2": average("h2"),
         "promedio_diferencia_encabezados_h3": average("h3"),
@@ -109,4 +131,23 @@ def generate_summary(results):
         "promedio_diferencia_etiquetas": average("label"),
         "promedio_diferencia_parrafos": average("paragraph"),
         "promedio_diferencia_listas": average("list"),
+
+        "cantidad_coincidencias_exactas_parrafos": (
+            total_paragraph_matches("exact_matches")
+        ),
+        "cantidad_coincidencias_aproximadas_parrafos": (
+            total_paragraph_matches("fuzzy_matches")
+        ),
+        "cantidad_parrafos_ia_sin_coincidencia": sum(
+            len(
+                result["content"]["sections"]["paragraphs"]["unmatched_ia"]
+            )
+            for result in results
+        ),
+        "cantidad_parrafos_humanos_sin_coincidencia": sum(
+            len(
+                result["content"]["sections"]["paragraphs"]["unmatched_human"]
+            )
+            for result in results
+        ),
     }

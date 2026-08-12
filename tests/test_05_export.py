@@ -26,9 +26,9 @@ def sample_results():
                         "difference": 1,
                     },
                     "h3": {
-                        "ia": 1,
+                        "ia": 3,
                         "human": 2,
-                        "difference": -1,
+                        "difference": 1,
                     },
                     "landmark": {
                         "ia": 1,
@@ -37,23 +37,46 @@ def sample_results():
                     },
                     "label": {
                         "ia": 2,
-                        "human": 1,
-                        "difference": 1,
+                        "human": 3,
+                        "difference": -1,
                     },
                     "paragraph": {
-                        "ia": 10,
-                        "human": 12,
-                        "difference": -2,
+                        "ia": 4,
+                        "human": 5,
+                        "difference": -1,
                     },
                     "list": {
                         "ia": 1,
                         "human": 1,
                         "difference": 0,
                     },
-                }
+                },
             },
             "content": {
-                "sections": {},
+                "sections": {
+                    "paragraphs": {
+                        "exact_matches": [
+                            {
+                                "ia_text": "Primer párrafo.",
+                                "human_text": "Primer párrafo.",
+                                "similarity": 1.0,
+                            }
+                        ],
+                        "fuzzy_matches": [
+                            {
+                                "ia_text": "Segundo párrafo de la IA.",
+                                "human_text": "Segundo párrafo corregido.",
+                                "similarity": 0.85,
+                            }
+                        ],
+                        "unmatched_ia": [
+                            "Párrafo que solo aparece en la IA."
+                        ],
+                        "unmatched_human": [
+                            "Párrafo que solo aparece en la corrección humana."
+                        ],
+                    },
+                },
             },
         }
     ]
@@ -78,25 +101,42 @@ def test_flatten_results():
     assert row["encabezados_h2_humano"] == 1
     assert row["diferencia_encabezados_h2"] == 1
 
-    assert row["encabezados_h3_ia"] == 1
+    assert row["encabezados_h3_ia"] == 3
     assert row["encabezados_h3_humano"] == 2
-    assert row["diferencia_encabezados_h3"] == -1
+    assert row["diferencia_encabezados_h3"] == 1
 
     assert row["landmarks_ia"] == 1
     assert row["landmarks_humano"] == 1
     assert row["diferencia_landmarks"] == 0
 
     assert row["etiquetas_ia"] == 2
-    assert row["etiquetas_humano"] == 1
-    assert row["diferencia_etiquetas"] == 1
+    assert row["etiquetas_humano"] == 3
+    assert row["diferencia_etiquetas"] == -1
 
-    assert row["parrafos_ia"] == 10
-    assert row["parrafos_humano"] == 12
-    assert row["diferencia_parrafos"] == -2
+    assert row["parrafos_ia"] == 4
+    assert row["parrafos_humano"] == 5
+    assert row["diferencia_parrafos"] == -1
+
+    assert row["coincidencias_exactas_parrafos"] == 1
+    assert row["coincidencias_aproximadas_parrafos"] == 1
+    assert row["parrafos_ia_sin_coincidencia"] == 1
+    assert row["parrafos_humanos_sin_coincidencia"] == 1
 
     assert row["listas_ia"] == 1
     assert row["listas_humano"] == 1
     assert row["diferencia_listas"] == 0
+
+
+def test_flatten_results_does_not_export_paragraph_text():
+    """El CSV no debe contener los textos de las comparaciones."""
+
+    rows = flatten_results(sample_results())
+
+    row = rows[0]
+
+    assert "Primer párrafo." not in row.values()
+    assert "Segundo párrafo de la IA." not in row.values()
+    assert "Segundo párrafo corregido." not in row.values()
 
 
 def test_generate_summary():
@@ -104,20 +144,24 @@ def test_generate_summary():
 
     summary = generate_summary(sample_results())
 
-    assert summary == {
-        "cantidad_documentos": 1,
-        "promedio_diferencia_encabezados_h1": 0,
-        "promedio_diferencia_encabezados_h2": 1,
-        "promedio_diferencia_encabezados_h3": -1,
-        "promedio_diferencia_landmarks": 0,
-        "promedio_diferencia_etiquetas": 1,
-        "promedio_diferencia_parrafos": -2,
-        "promedio_diferencia_listas": 0,
-    }
+    assert summary["cantidad_documentos"] == 1
+
+    assert summary["promedio_diferencia_encabezados_h1"] == 0
+    assert summary["promedio_diferencia_encabezados_h2"] == 1
+    assert summary["promedio_diferencia_encabezados_h3"] == 1
+    assert summary["promedio_diferencia_landmarks"] == 0
+    assert summary["promedio_diferencia_etiquetas"] == -1
+    assert summary["promedio_diferencia_parrafos"] == -1
+    assert summary["promedio_diferencia_listas"] == 0
+
+    assert summary["cantidad_coincidencias_exactas_parrafos"] == 1
+    assert summary["cantidad_coincidencias_aproximadas_parrafos"] == 1
+    assert summary["cantidad_parrafos_ia_sin_coincidencia"] == 1
+    assert summary["cantidad_parrafos_humanos_sin_coincidencia"] == 1
 
 
-def test_generate_summary_empty():
-    """Un conjunto vacío debe producir un resumen vacío."""
+def test_generate_summary_with_empty_results():
+    """El resumen vacío debe producir un diccionario vacío."""
 
     assert generate_summary([]) == {}
 
@@ -136,13 +180,15 @@ def test_export_csv(tmp_path):
     content = path.read_text(encoding="utf-8")
 
     assert "id" in content
-    assert "encabezados_h3_ia" in content
-    assert "diferencia_encabezados_h3" in content
-    assert "parrafos_ia" in content
+    assert "encabezados_h1_ia" in content
+    assert "coincidencias_exactas_parrafos" in content
+    assert "coincidencias_aproximadas_parrafos" in content
+
+    assert "Primer párrafo." not in content
 
 
-def test_export_csv_empty(tmp_path):
-    """Una colección vacía no debe generar un archivo CSV."""
+def test_export_csv_with_empty_rows(tmp_path):
+    """La exportación CSV vacía no debe crear contenido."""
 
     path = tmp_path / "comparison.csv"
 
@@ -152,7 +198,7 @@ def test_export_csv_empty(tmp_path):
 
 
 def test_export_json(tmp_path):
-    """Los resultados completos deben conservarse en JSON."""
+    """Los resultados completos deben poder exportarse a JSON."""
 
     path = tmp_path / "comparison.json"
 

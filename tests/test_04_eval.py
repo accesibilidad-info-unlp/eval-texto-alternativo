@@ -6,17 +6,20 @@ from pipeline.step_04_eval import (
     compare_order,
     count_structure,
     describe_difference,
+    evaluate_content,
     evaluate_documents,
-    evaluate_structure, evaluate_content,
+    evaluate_paragraphs,
+    evaluate_structure,
 )
 
-
 DATA_DIR = Path("data")
+
 
 # structure eval
 
 def make_document(structure):
     """Construye un Document mínimo a partir de una estructura."""
+
     lines = []
 
     for element_type, value in structure:
@@ -180,7 +183,7 @@ def test_evaluate_structure():
 
     result = evaluate_structure(ia, human)
 
-    assert result["reference"] == "human"
+    assert "reference" not in result
 
     assert result["total_elements"]["ia"] == 3
     assert result["total_elements"]["human"] == 4
@@ -196,23 +199,28 @@ def test_evaluate_structure():
     assert result["order"]["matching_positions"] == 2
 
 
-def test_evaluate_documents_contains_structure():
+def test_evaluate_documents_contains_structure_and_content():
     ia = make_document(
         [
             ("h1", "Título"),
+            ("paragraph", "Texto"),
         ]
     )
 
     human = make_document(
         [
             ("h1", "Título"),
+            ("paragraph", "Texto"),
         ]
     )
 
     result = evaluate_documents(ia, human)
 
     assert "structure" in result
-    assert result["structure"]["reference"] == "human"
+    assert "content" in result
+
+    assert "reference" not in result["structure"]
+    assert "reference" not in result["content"]
 
 
 def test_real_pair_01():
@@ -229,7 +237,7 @@ def test_real_pair_01():
 
     result = evaluate_structure(ia, human)
 
-    assert result["reference"] == "human"
+    assert "reference" not in result
 
     assert result["elements"]["h1"]["ia"] == 1
     assert result["elements"]["h1"]["human"] == 1
@@ -239,6 +247,152 @@ def test_real_pair_01():
 
     assert result["elements"]["landmark"]["ia"] == 0
     assert result["elements"]["landmark"]["human"] == 2
+
+
+# paragraph eval
+
+def test_evaluate_paragraphs_matches_by_key():
+    """Los párrafos con la misma clave deben coincidir directamente."""
+
+    ia = {
+        "primer-parrafo-12345678": "Texto del primer párrafo.",
+        "segundo-parrafo-87654321": (
+            "Las universidades necesitan mejorar "
+            "sus sistemas de accesibilidad."
+        ),
+    }
+
+    human = {
+        "primer-parrafo-12345678": "Texto del primer párrafo.",
+        "tercer-parrafo-11111111": (
+            "La programación funcional utiliza funciones "
+            "como unidad fundamental."
+        ),
+    }
+
+    result = evaluate_paragraphs(ia, human)
+
+    assert len(result["exact_matches"]) == 1
+
+    match = result["exact_matches"][0]
+
+    assert match["ia_text"] == "Texto del primer párrafo."
+    assert match["human_text"] == "Texto del primer párrafo."
+    assert match["similarity"] == 1.0
+
+    assert result["unmatched_ia"] == [
+        "Las universidades necesitan mejorar "
+        "sus sistemas de accesibilidad."
+    ]
+
+    assert result["unmatched_human"] == [
+        "La programación funcional utiliza funciones "
+        "como unidad fundamental."
+    ]
+
+
+def test_evaluate_paragraphs_uses_fuzzy_matching():
+    """Los párrafos sin coincidencia por clave deben compararse por similitud."""
+
+    ia = {
+        "primer-parrafo-12345678": (
+            "Las mujeres también fueron protagonistas "
+            "en la historia."
+        )
+    }
+
+    human = {
+        "primer-parrafo-87654321": (
+            "Las mujeres también fueron protagonistas "
+            "de la historia."
+        )
+    }
+
+    result = evaluate_paragraphs(ia, human)
+
+    assert len(result["exact_matches"]) == 0
+    assert len(result["fuzzy_matches"]) == 1
+
+    match = result["fuzzy_matches"][0]
+
+    assert match["ia_text"] == ia["primer-parrafo-12345678"]
+    assert match["human_text"] == human["primer-parrafo-87654321"]
+    assert match["similarity"] >= 0.70
+
+    assert result["unmatched_ia"] == []
+    assert result["unmatched_human"] == []
+
+
+def test_evaluate_paragraphs_does_not_match_below_threshold():
+    """Los párrafos con baja similitud deben quedar sin coincidencia."""
+
+    ia = {
+        "primer-parrafo-12345678": (
+            "Las mujeres también fueron protagonistas."
+        )
+    }
+
+    human = {
+        "otro-parrafo-87654321": (
+            "La computación cuántica utiliza principios "
+            "de la mecánica cuántica."
+        )
+    }
+
+    result = evaluate_paragraphs(ia, human)
+
+    assert result["exact_matches"] == []
+    assert result["fuzzy_matches"] == []
+
+    assert result["unmatched_ia"] == [
+        ia["primer-parrafo-12345678"]
+    ]
+
+    assert result["unmatched_human"] == [
+        human["otro-parrafo-87654321"]
+    ]
+
+
+def test_evaluate_paragraphs_does_not_reuse_human_paragraph():
+    """Un mismo párrafo humano no puede coincidir con dos párrafos de IA."""
+
+    ia = {
+        "primer-parrafo-11111111": (
+            "Las mujeres fueron protagonistas "
+            "de la historia."
+        ),
+        "segundo-parrafo-22222222": (
+            "Las mujeres fueron protagonistas "
+            "en la historia."
+        ),
+    }
+
+    human = {
+        "parrafo-humano-33333333": (
+            "Las mujeres fueron protagonistas "
+            "de la historia."
+        ),
+    }
+
+    result = evaluate_paragraphs(ia, human)
+
+    assert len(result["fuzzy_matches"]) == 1
+    assert len(result["unmatched_ia"]) == 1
+    assert len(result["unmatched_human"]) == 0
+
+
+def test_evaluate_paragraphs_handles_empty_collections():
+    """La comparación debe manejar colecciones vacías."""
+
+    result = evaluate_paragraphs({}, {})
+
+    assert result == {
+        "exact_matches": [],
+        "fuzzy_matches": [],
+        "unmatched_ia": [],
+        "unmatched_human": [],
+    }
+
 
 # content eval
 
@@ -275,7 +429,7 @@ def test_evaluate_content_compares_headings():
 
     evaluation = evaluate_content(ia, human)
 
-    assert evaluation["reference"] == "human"
+    assert "reference" not in evaluation
 
     assert evaluation["sections"]["h1"]["ia"] == 1
     assert evaluation["sections"]["h1"]["human"] == 1
@@ -288,6 +442,7 @@ def test_evaluate_content_compares_headings():
     assert evaluation["sections"]["h3"]["ia"] == 1
     assert evaluation["sections"]["h3"]["human"] == 1
     assert evaluation["sections"]["h3"]["difference"] == 0
+
 
 def test_evaluate_content_compares_all_sections():
     """La evaluación debe comparar todas las colecciones de contenido."""
@@ -319,7 +474,10 @@ def test_evaluate_content_compares_all_sections():
             "landmarks": ["main", "navigation"],
             "paragraphs": {
                 "primer-parrafo-12345678": "Texto",
-                "segundo-parrafo-87654321": "Otro texto",
+                "segundo-parrafo-87654321": (
+                    "La programación funcional utiliza funciones "
+                    "como unidad fundamental."
+                ),
             },
             "lists": ["lista"],
         }
@@ -335,13 +493,21 @@ def test_evaluate_content_compares_all_sections():
     assert evaluation["sections"]["landmarks"]["human"] == 2
     assert evaluation["sections"]["landmarks"]["difference"] == -1
 
-    assert evaluation["sections"]["paragraphs"]["ia"] == 1
-    assert evaluation["sections"]["paragraphs"]["human"] == 2
-    assert evaluation["sections"]["paragraphs"]["difference"] == -1
+    paragraphs = evaluation["sections"]["paragraphs"]
+
+    assert len(paragraphs["exact_matches"]) == 1
+    assert len(paragraphs["fuzzy_matches"]) == 0
+
+    assert paragraphs["unmatched_ia"] == []
+    assert paragraphs["unmatched_human"] == [
+        "La programación funcional utiliza funciones "
+        "como unidad fundamental."
+    ]
 
     assert evaluation["sections"]["lists"]["ia"] == 1
     assert evaluation["sections"]["lists"]["human"] == 1
     assert evaluation["sections"]["lists"]["difference"] == 0
+
 
 def test_evaluate_content_handles_empty_content():
     """La evaluación debe manejar colecciones de contenido vacías."""
@@ -365,9 +531,15 @@ def test_evaluate_content_handles_empty_content():
         "h3",
         "labels",
         "landmarks",
-        "paragraphs",
         "lists",
     ):
         assert evaluation["sections"][section]["ia"] == 0
         assert evaluation["sections"][section]["human"] == 0
         assert evaluation["sections"][section]["difference"] == 0
+
+    assert evaluation["sections"]["paragraphs"] == {
+        "exact_matches": [],
+        "fuzzy_matches": [],
+        "unmatched_ia": [],
+        "unmatched_human": [],
+    }
