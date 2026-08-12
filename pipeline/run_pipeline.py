@@ -1,8 +1,8 @@
-from pair_files import load_all_pairs
-from preprocess import preprocess
-from parse_md import parse_document
-from compare import compare_documents
-from export import (
+from step_01_pair import load_all_pairs
+from step_02_preprocess import preprocess
+from step_03_parse import parse_document
+from step_04_eval import compare_documents
+from step_05_export import (
     export_csv,
     export_json,
     export_summary,

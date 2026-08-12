@@ -1,4 +1,4 @@
-from parse_md import Document
+from step_03_parse import Document
 
 def compare_structures(ia:Document, human:Document):
 
