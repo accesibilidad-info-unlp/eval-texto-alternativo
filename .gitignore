@@ -1,3 +1,5 @@
 .env
 .venv
 .idea
+_site
+node_modules
