@@ -1,110 +1,119 @@
 from dataclasses import dataclass, field
-
-@dataclass
-class Metrics:
-    section_heading_count: int = 0
-    spatial_landmark_count: int = 0
-    textual_label_count: int = 0
-    paragraph_count: int = 0
-    list_count: int = 0
-
-@dataclass
-class Landmark:
-    name: str
-    paragraphs: list[str] = field(default_factory=list)
-    text_labels: list[str] = field(default_factory=list)
-    lists: list[str] = field(default_factory=list)
-
-@dataclass
-class Section:
-    heading: str
-    landmarks: list[Landmark] = field(default_factory=list)
-    text_labels: list[str] = field(default_factory=list)
-    paragraphs: list[str] = field(default_factory=list)
-    lists: list[str] = field(default_factory=list)
+import hashlib
+import re
+import unicodedata
 
 @dataclass
 class Document:
-    title: str | None = None
-    sections: list[Section] = field(default_factory=list)
-    metrics: Metrics = field(default_factory=Metrics)
+    structure: list[tuple[str, str]] = field(default_factory=list)
+    content: dict = field(default_factory=lambda: {
+        "headings": {
+            "h1": [],
+            "h2": []
+        },
+        "labels": [],
+        "landmarks": [],
+        "paragraphs": {},
+        "lists": []
+    })
+
+
+def normalize_text(text):
+    """Normaliza un texto para generar claves de comparación."""
+
+    text = text.lower()
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(
+        char
+        for char in text
+        if unicodedata.category(char) != "Mn"
+    )
+
+    return text
+
+
+def make_paragraph_key(text):
+    """Genera una clave legible y compacta para un párrafo."""
+
+    normalized = normalize_text(text)
+    words = re.findall(r"\w+", normalized)
+
+    prefix = "-".join(words[:5])
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:8]
+
+    return f"{prefix}-{digest}"
+
+
+def add_paragraph(document, text):
+    key = make_paragraph_key(text)
+
+    # Conservamos el texto original para evaluarlo posteriormente.
+    document.content["paragraphs"][key] = text
+
+    # La estructura sólo necesita una referencia breve al contenido.
+    preview = " ".join(text.split()[:5])
+    document.structure.append(("paragraph", preview))
+
 
 def parse_document(text):
     document = Document()
 
-    blocks = text.split("\n\n")
-
-    current_section = None
-    current_landmark = None
-
-    def get_target():
-        return current_landmark if current_landmark else current_section
-
-    def compute_metrics(sections: list[Section]) -> Metrics:
-        metrics = Metrics()
-        metrics.section_heading_count = len(sections)
-
-        for section in sections:
-            metrics.spatial_landmark_count += len(section.landmarks)
-            metrics.textual_label_count += len(section.text_labels)
-            metrics.paragraph_count += len(section.paragraphs)
-            metrics.list_count += len(section.lists)
-
-            for landmark in section.landmarks:
-                metrics.textual_label_count += len(landmark.text_labels)
-                metrics.paragraph_count += len(landmark.paragraphs)
-                metrics.list_count += len(landmark.lists)
-
-        return metrics
-
-    for block in blocks:
+    for block in text.split("\n\n"):
         block = block.strip()
 
         if not block:
             continue
 
-        # Extract document title
+        # Título principal.
         if block.startswith("# "):
-            document.title = block[2:].strip()
+            title = block[2:].strip()
+            document.content["headings"]["h1"].append(title)
+            document.structure.append(("h1", title))
             continue
 
-        # Extract section
+        # Encabezado de sección.
         if block.startswith("## "):
-            current_section = Section(heading = block[3:].strip())
-            document.sections.append(current_section)
-            current_landmark = None
-        # Extract landmark
-        elif block.startswith("[") and block.endswith("]"):
-            if current_section is None:
-                continue
-            current_landmark = Landmark(name = block[1:-1].strip())
-            current_section.landmarks.append(current_landmark)
-        # Extract text labels
-        elif block.startswith("**") and block.endswith("**"):
-            label = block[2:-2].strip()
-            target = get_target()
-            if target:
-                target.text_labels.append(label)
-        # Extract label variant
-        elif block.startswith("- ") and block.endswith(":"):
-            label = block[2:-1].strip()
-            target = get_target()
-            if target:
-                target.text_labels.append(label)
-        # Extract list item
-        elif block.startswith("- "):
-            target = get_target()
-            if target:
-                for line in block.splitlines():
-                    line = line.strip()
-                    if line.startswith("- "):
-                        target.lists.append(line[2:].strip())
-        # Extract paragraphs
-        else:
-            target = get_target()
-            if target:
-                target.paragraphs.append(block)
+            heading = block[3:].strip()
+            document.content["headings"]["h2"].append(heading)
+            document.structure.append(("h2", heading))
+            continue
 
-    document.metrics = compute_metrics(document.sections)
+        # Landmark espacial.
+        if block.startswith("[") and block.endswith("]"):
+            landmark = block[1:-1].strip()
+            document.content["landmarks"].append(landmark)
+            document.structure.append(("landmark", landmark))
+            continue
+
+        # Etiqueta en negrita.
+        if block.startswith("**") and block.endswith("**"):
+            label = block[2:-2].strip()
+            document.content["labels"].append(label)
+            document.structure.append(("label", label))
+            continue
+
+        # Variante de etiqueta.
+        if block.startswith("- ") and block.endswith(":"):
+            label = block[2:-1].strip()
+            document.content["labels"].append(label)
+            document.structure.append(("label", label))
+            continue
+
+        # Lista.
+        if block.startswith("- "):
+            items = [
+                line[2:].strip()
+                for line in block.splitlines()
+                if line.strip().startswith("- ")
+            ]
+
+            document.content["lists"].append(items)
+
+            preview = " ".join(items[:2])
+            document.structure.append(("list", preview))
+            continue
+
+        # Párrafo.
+        add_paragraph(document, block)
 
     return document
